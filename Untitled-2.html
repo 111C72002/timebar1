@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>圓形倒數計時器</title>
+<style>
+  :root{
+    --circle: #A6F657; /* 亮綠圓背景 */
+    --text: #0B1C1A;   /* 深色字 */
+    --label: #0B1C1A;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background: transparent; /* 透明背景，嵌入 Canva 可顯露底圖 */
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", "Heiti TC", "Microsoft JhengHei", Arial, sans-serif;
+    color: var(--text);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 8px;
+  }
+  .wrap{ width:100%; }
+  .timer{
+    display:flex;
+    gap: clamp(10px, 3vw, 28px);
+    align-items:center;
+    justify-content:center;
+    flex-wrap: wrap;
+  }
+  .dot{
+    width: clamp(72px, 15vw, 120px);
+    height: clamp(72px, 15vw, 120px);
+    border-radius: 9999px;
+    background: var(--circle);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:8px;
+  }
+  .num{
+    font-weight: 800;
+    font-size: clamp(22px, 6vw, 42px);
+    line-height: 1.05;
+  }
+  .label{
+    margin-top: 6px;
+    font-weight: 600;
+    font-size: clamp(10px, 2.8vw, 14px);
+    color: var(--label);
+    opacity: .9;
+  }
+  .sr-only{
+    position:absolute !important;
+    height:1px; width:1px; overflow:hidden;
+    clip: rect(1px, 1px, 1px, 1px);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" role="timer" aria-live="polite">
+    <div class="timer">
+      <div class="dot"><div class="num" id="d">0</div><div class="label" id="ld">Days</div></div>
+      <div class="dot"><div class="num" id="h">00</div><div class="label" id="lh">Hours</div></div>
+      <div class="dot"><div class="num" id="m">00</div><div class="label" id="lm">Minutes</div></div>
+      <div class="dot"><div class="num" id="s">00</div><div class="label" id="ls">Seconds</div></div>
+    </div>
+    <div class="sr-only" id="srText"></div>
+  </div>
+
+<script>
+(function(){
+  // ====== URL 參數 ======
+  const url = new URL(window.location.href);
+  const dateParam = url.searchParams.get("date") || "2025-10-31T00:00:00+08:00";
+  const labels = (url.searchParams.get("labels") || "zh").toLowerCase();
+  const circle = url.searchParams.get("circle");
+  const text = url.searchParams.get("text");
+  const labelColor = url.searchParams.get("label");
+  const gap = url.searchParams.get("gap");
+
+  if (circle) document.documentElement.style.setProperty("--circle", circle);
+  if (text) document.documentElement.style.setProperty("--text", text);
+  if (labelColor) document.documentElement.style.setProperty("--label", labelColor);
+  if (gap) document.querySelector(".timer").style.gap = gap;
+
+  // ====== 元素 ======
+  const dEl = document.getElementById("d");
+  const hEl = document.getElementById("h");
+  const mEl = document.getElementById("m");
+  const sEl = document.getElementById("s");
+  const sr = document.getElementById("srText");
+
+  // ====== 語系 ======
+  function setLabels(locale){
+    const ld = document.getElementById("ld");
+    const lh = document.getElementById("lh");
+    const lm = document.getElementById("lm");
+    const ls = document.getElementById("ls");
+    if (locale === "zh"){
+      ld.textContent = "Days";
+      lh.textContent = "Hours";
+      lm.textContent = "Minutes";
+      ls.textContent = "Seconds";
+    } else {
+      ld.textContent = "Days";
+      lh.textContent = "Hours";
+      lm.textContent = "Minutes";
+      ls.textContent = "Seconds";
+    }
+  }
+  setLabels(labels);
+
+  // ====== 解析時間 ======
+  const target = new Date(dateParam);
+  if (isNaN(target.getTime())){
+    // 顯示錯誤（但不拋出，以免 Canva 停止渲染）
+    dEl.textContent = "Err";
+    hEl.textContent = "--";
+    mEl.textContent = "--";
+    sEl.textContent = "--";
+    console.warn("Invalid date. Use ISO like 2025-10-31T00:00:00+08:00");
+    return;
+  }
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+
+  function tick(){
+    const now = new Date();
+    let diff = target - now;
+    if (diff <= 0){
+      dEl.textContent = "0";
+      hEl.textContent = "00";
+      mEl.textContent = "00";
+      sEl.textContent = "00";
+      document.title = "倒數完成";
+      sr.textContent = "已到期";
+      clearInterval(id);
+      return;
+    }
+    const days = Math.floor(diff / 86400000);
+    diff -= days * 86400000;
+    const hours = Math.floor(diff / 3600000);
+    diff -= hours * 3600000;
+    const mins = Math.floor(diff / 60000);
+    diff -= mins * 60000;
+    const secs = Math.floor(diff / 1000);
+
+    dEl.textContent = String(days);
+    hEl.textContent = pad(hours);
+    mEl.textContent = pad(mins);
+    sEl.textContent = pad(secs);
+    sr.textContent = `還有 ${days} days ${pad(hours)} hours ${pad(mins)} 分 ${pad(secs)} 秒`;
+    document.title = `剩餘 ${days}days ${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+  }
+
+  const id = setInterval(tick, 1000);
+  tick();
+})();
+</script>
+</body>
+</html>
